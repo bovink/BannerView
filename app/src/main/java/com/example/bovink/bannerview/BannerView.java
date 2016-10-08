@@ -30,7 +30,7 @@ public class BannerView extends FrameLayout {
     /**
      * 显示标识点
      */
-    private LinearLayout dotLinearLayout;
+    private LinearLayout ll_dot;
     /**
      * 环境
      */
@@ -88,31 +88,29 @@ public class BannerView extends FrameLayout {
         params = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         viewPager.setLayoutParams(params);
         viewPager.addOnPageChangeListener(new ViewPagerOnPageChangeListener());
-
         addView(viewPager);
 
         // 指示点线性布局
-        dotLinearLayout = new LinearLayout(context);
+        ll_dot = new LinearLayout(context);
         params = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.gravity = Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM;
         params.bottomMargin = 16;
-        dotLinearLayout.setLayoutParams(params);
-        addView(dotLinearLayout);
-
-
+        ll_dot.setLayoutParams(params);
+        addView(ll_dot);
     }
 
     /**
      * 添加数据
      *
-     * @param holder 接口
+     * @param itemViewHolder 接口
      * @param strings 数据
-     * @return bannerview
+     * @return 自身
      */
-    public BannerView setData(Holder<String> holder, List<String> strings) {
-        viewPager.setAdapter(new ViewPagerAdapter<>(holder, strings));
+    public BannerView setData(ItemViewHolder<String> itemViewHolder, List<String> strings) {
+        viewPager.setAdapter(new ViewPagerAdapter<>(itemViewHolder, strings));
 
-        dotLinearLayout.removeAllViews();
+        ll_dot.removeAllViews();
+        // 添加dot
         for (int i = 0; i < strings.size(); i++) {
             ImageView imageView = new ImageView(context);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(20, 20);
@@ -120,7 +118,7 @@ public class BannerView extends FrameLayout {
             imageView.setLayoutParams(params);
             imageView.setImageResource(R.drawable.shape_dot_normal);
 
-            dotLinearLayout.addView(imageView);
+            ll_dot.addView(imageView);
         }
         return this;
     }
@@ -177,6 +175,128 @@ public class BannerView extends FrameLayout {
         this.onBannerItemClick = onBannerItemClick;
     }
 
+
+    /**
+     * 设置当前Dot的状态
+     *
+     * @param position 位置
+     */
+    private void setCurrentDot(int position) {
+        int realPosition = position % ll_dot.getChildCount();
+        // 重置指示dot的状态
+        for (int i = 0; i < ll_dot.getChildCount(); i++) {
+            ((ImageView) ll_dot.getChildAt(i)).setImageResource(R.drawable.shape_dot_normal);
+        }
+        // 指定position的dot设置状态
+        ((ImageView) ll_dot.getChildAt(realPosition)).setImageResource(R.drawable.shape_dot_focused);
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        switch (ev.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                stopSwitch();
+                break;
+            // 故意这样写，让ACTION_CANCEL和ACTION_UP执行同一反应
+            case MotionEvent.ACTION_CANCEL:
+            case MotionEvent.ACTION_UP:
+                startSwitch(switchTime);
+                break;
+        }
+        return false;
+    }
+
+    /**
+     * 数据适配器
+     * 伪无限循环
+     *
+     * @param <T>
+     */
+    private class ViewPagerAdapter<T> extends PagerAdapter {
+        /**
+         * 实现视图的接口
+         */
+        ItemViewHolder itemViewHolder;
+        /**
+         * 数据列表
+         */
+        List<T> data;
+
+        private ViewPagerAdapter(ItemViewHolder itemViewHolder, List<T> data) {
+            this.itemViewHolder = itemViewHolder;
+            this.data = data;
+        }
+
+        @Override
+        public int getCount() {
+            return Integer.MAX_VALUE;
+        }
+
+        @Override
+        public boolean isViewFromObject(View view, Object object) {
+            return view == object;
+        }
+
+        @Override
+        public void destroyItem(ViewGroup container, int position, Object object) {
+            View view = (View) object;
+            container.removeView(view);
+        }
+
+        @Override
+        public Object instantiateItem(ViewGroup container, int position) {
+            final int realPosition = getRealPosition(position);
+            final View view = getView(container, realPosition);
+            view.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (onBannerItemClick != null) {
+                        onBannerItemClick.onItemClick(view, realPosition);
+                    }
+                }
+            });
+            container.addView(view);
+            return view;
+        }
+
+        /**
+         * 获取实际坐标
+         * @param position 未经处理的坐标
+         * @return 实际坐标
+         */
+        private int getRealPosition(int position) {
+            int realCount = getRealCount();
+            if (realCount == 0) {
+                return 0;
+            }
+            return position % realCount;
+        }
+
+        /**
+         * 获取数据的实际长度
+         * @return 数据的实际长度
+         */
+        private int getRealCount() {
+            return data == null ? 0 : data.size();
+        }
+
+        /**
+         * 获取视图
+         * @param container 父布局
+         * @param position 位置
+         * @return 视图
+         */
+        private View getView(ViewGroup container, int position) {
+            ItemViewHolder itemViewHolder = this.itemViewHolder;
+            View view = itemViewHolder.createView(container.getContext());
+
+            if (data != null && data.size() != 0) {
+                itemViewHolder.viewCreated(container.getContext(), position, data.get(position));
+            }
+            return view;
+        }
+    }
+
     /**
      * 滑动监听
      */
@@ -203,137 +323,18 @@ public class BannerView extends FrameLayout {
     }
 
     /**
-     * 设置当前Dot的状态
-     *
-     * @param position 位置
-     */
-    private void setCurrentDot(int position) {
-        int realPosition = position % dotLinearLayout.getChildCount();
-        for (int i = 0; i < dotLinearLayout.getChildCount(); i++) {
-            ((ImageView) dotLinearLayout.getChildAt(i)).setImageResource(R.drawable.shape_dot_normal);
-        }
-        ((ImageView) dotLinearLayout.getChildAt(realPosition)).setImageResource(R.drawable.shape_dot_focused);
-    }
-
-    @Override
-    public boolean onInterceptTouchEvent(MotionEvent ev) {
-        switch (ev.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-                stopSwitch();
-                break;
-            // 故意这样写，让ACTION_CANCEL和ACTION_UP执行同一反应
-            case MotionEvent.ACTION_CANCEL:
-            case MotionEvent.ACTION_UP:
-                startSwitch(switchTime);
-                break;
-        }
-        return false;
-    }
-
-    /**
-     * 内容适配器
+     * 通过此接口初始化视图
      *
      * @param <T>
      */
-    private class ViewPagerAdapter<T> extends PagerAdapter {
-
-        Holder holder;
-        List<T> datas;
-
-        public ViewPagerAdapter(Holder holder, List<T> datas) {
-            this.holder = holder;
-            this.datas = datas;
-        }
-
-        /**
-         * 换算成真实数据
-         * @param position 位置
-         * @return 位置
-         */
-        public int toRealPosition(int position) {
-            int realCount = getRealCount();
-            if (realCount == 0)
-                return 0;
-            return position % realCount;
-        }
-
-        /**
-         * 获取图片的真实数据
-         * @return 数
-         */
-        public int getRealCount() {
-            return datas == null ? 0 : datas.size();
-        }
-
-        @Override
-        public int getCount() {
-            return Integer.MAX_VALUE;
-        }
-
-        @Override
-        public boolean isViewFromObject(View view, Object object) {
-            return view == object;
-        }
-
-        @Override
-        public void destroyItem(ViewGroup container, int position, Object object) {
-            View view = (View) object;
-            container.removeView(view);
-        }
-
-        @Override
-        public Object instantiateItem(ViewGroup container, int position) {
-            final int realPosition = toRealPosition(position);
-            final View view = getView(container, realPosition, null);
-            view.setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (onBannerItemClick != null) {
-                        onBannerItemClick.onItemClick(view, realPosition);
-                    }
-                }
-            });
-            container.addView(view);
-            return view;
-        }
-
-        /**
-         * 获取视图
-         * @param container 父布局
-         * @param position 位置
-         * @param view 视图
-         * @return 视图
-         */
-        private View getView(ViewGroup container, int position, View view) {
-            Holder holder;
-            if (view == null) {
-                holder = this.holder;
-                view = holder.createView(container.getContext());
-                view.setTag(holder);
-
-            } else {
-                holder = (Holder) view.getTag();
-            }
-            if (datas != null && datas.size() != 0) {
-                holder.viewCreated(container.getContext(), position, datas.get(position));
-            }
-            return view;
-        }
-    }
-
-    /**
-     * 通过此接口初始化
-     *
-     * @param <T>
-     */
-    public interface Holder<T> {
+    public interface ItemViewHolder<T> {
         View createView(Context context);
 
         void viewCreated(Context context, int position, T data);
     }
 
     /**
-     * ViewPagerItem点击监听
+     * ViewPagerItem点击事件监听
      */
     public interface OnBannerItemClick {
         void onItemClick(View view, int position);

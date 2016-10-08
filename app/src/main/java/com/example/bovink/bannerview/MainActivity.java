@@ -37,11 +37,11 @@ public class MainActivity extends AppCompatActivity {
         networkImages= Arrays.asList(images);
 
         bannerView = (BannerView) findViewById(R.id.bannerView);
-        bannerView.setData(new ViewPagerHolder(), networkImages);
+        bannerView.setData(new ViewPagerItemViewHolder(), networkImages);
         bannerView.startSwitch(1000);
     }
 
-    private class ViewPagerHolder implements BannerView.Holder<String> {
+    private class ViewPagerItemViewHolder implements BannerView.ItemViewHolder<String> {
         SimpleDraweeView simpleDraweeView;
 
         @Override

@@ -19,7 +19,7 @@ public class SecondActivity extends Activity {
         super.onCreate(savedInstanceState);
     }
 
-    private class ViewHolder implements BannerView.Holder<String> {
+    private class ViewItemViewHolder implements BannerView.ItemViewHolder<String> {
         @Override
         public View createView(Context context) {
             return null;
