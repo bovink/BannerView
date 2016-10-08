@@ -1,6 +1,8 @@
 package com.example.bovink.bannerview;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Message;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.util.AttributeSet;
@@ -15,19 +17,48 @@ import android.widget.LinearLayout;
 import java.util.List;
 
 /**
- * com.example.bovink.bannerview
+ * 工具View，用来提供使用的View
  *
  * @author bovink
  * @since 2016/7/18
  */
-public class BannerView extends FrameLayout implements View.OnTouchListener {
+public class BannerView extends FrameLayout {
+    /**
+     * 显示图片
+     */
     private ViewPager viewPager;
+    /**
+     * 显示标识点
+     */
     private LinearLayout dotLinearLayout;
+    /**
+     * 环境
+     */
     private Context context;
-    private SwitchRunnable switchRunnable = new SwitchRunnable();
-
+    /**
+     * BannerItem点击事件
+     */
+    private OnBannerItemClick onBannerItemClick;
+    /**
+     * 控制Banner切换的Handler
+     */
+    private SwitchHandler switchHandler = new SwitchHandler();
+    /**
+     * Banner切换的时间
+     */
     private Long switchTime;
-
+    /**
+     * Banner是否在切换的flag
+     */
+    private Boolean isSwitching = false;
+    /**
+     * 开始切换Banner
+     */
+    private final static int START_SWITCH = 1;
+    /**
+     * 停止切换Banner
+     */
+    private final static int STOP_SWITCH = 2;
 
     public BannerView(Context context) {
         super(context);
@@ -44,6 +75,10 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
         init(context);
     }
 
+    /**
+     * 初始化
+     * @param context 环境
+     */
     private void init(Context context) {
         this.context = context;
         LayoutParams params;
@@ -53,7 +88,7 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
         params = new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         viewPager.setLayoutParams(params);
         viewPager.addOnPageChangeListener(new ViewPagerOnPageChangeListener());
-        viewPager.setOnTouchListener(this);
+
         addView(viewPager);
 
         // 指示点线性布局
@@ -67,12 +102,20 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
 
     }
 
+    /**
+     * 添加数据
+     *
+     * @param holder 接口
+     * @param strings 数据
+     * @return bannerview
+     */
     public BannerView setData(Holder<String> holder, List<String> strings) {
         viewPager.setAdapter(new ViewPagerAdapter<>(holder, strings));
 
+        dotLinearLayout.removeAllViews();
         for (int i = 0; i < strings.size(); i++) {
             ImageView imageView = new ImageView(context);
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(20, 20);
             params.rightMargin = 10;
             imageView.setLayoutParams(params);
             imageView.setImageResource(R.drawable.shape_dot_normal);
@@ -82,40 +125,61 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
         return this;
     }
 
+    /**
+     * 如果没有在切换，开始切换
+     *
+     * @param time 切换的时间
+     */
     public void startSwitch(long time) {
-        switchTime = time;
-        viewPager.postDelayed(switchRunnable, time);
+        if (!isSwitching) {
+
+            switchTime = time;
+            isSwitching = true;
+            switchHandler.sendEmptyMessageDelayed(START_SWITCH, time);
+        }
     }
 
+    /**
+     * 如果正在切换，停止切换
+     */
     public void stopSwitch() {
-        viewPager.removeCallbacks(switchRunnable);
-    }
+        if (isSwitching) {
 
-
-    @Override
-    public boolean onTouch(View v, MotionEvent event) {
-        switch (event.getActionMasked()) {
-            case MotionEvent.ACTION_DOWN:
-                viewPager.removeCallbacks(switchRunnable);
-                break;
-            case MotionEvent.ACTION_UP:
-                viewPager.postDelayed(switchRunnable, switchTime);
-                break;
+            isSwitching = false;
+            switchHandler.sendEmptyMessage(STOP_SWITCH);
         }
-
-        return false;
     }
 
-    private class SwitchRunnable implements Runnable {
-
+    /**
+     * 用来控制Banner切换
+     */
+    private class SwitchHandler extends Handler {
         @Override
-        public void run() {
-            viewPager.setCurrentItem(viewPager.getCurrentItem() + 1);
-            startSwitch(switchTime);
-
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case START_SWITCH:
+                    viewPager.setCurrentItem(viewPager.getCurrentItem() + 1);
+                    sendEmptyMessageDelayed(START_SWITCH, switchTime);
+                    break;
+                case STOP_SWITCH:
+                    removeMessages(START_SWITCH);
+                    break;
+            }
         }
     }
 
+    /**
+     * 设置Banner点击事件
+     *
+     * @param onBannerItemClick 点击事件
+     */
+    public void setOnBannerItemClick(OnBannerItemClick onBannerItemClick) {
+        this.onBannerItemClick = onBannerItemClick;
+    }
+
+    /**
+     * 滑动监听
+     */
     private class ViewPagerOnPageChangeListener implements ViewPager.OnPageChangeListener {
         @Override
         public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
@@ -124,19 +188,24 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
 
         @Override
         public void onPageSelected(int position) {
-            System.out.println(position + "");
             setCurrentDot(position);
         }
 
         @Override
         public void onPageScrollStateChanged(int state) {
 
+            switch (state) {
+                case ViewPager.SCROLL_STATE_IDLE:
+                    startSwitch(switchTime);
+                    break;
+            }
         }
     }
 
     /**
      * 设置当前Dot的状态
-     * @param position
+     *
+     * @param position 位置
      */
     private void setCurrentDot(int position) {
         int realPosition = position % dotLinearLayout.getChildCount();
@@ -144,6 +213,21 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
             ((ImageView) dotLinearLayout.getChildAt(i)).setImageResource(R.drawable.shape_dot_normal);
         }
         ((ImageView) dotLinearLayout.getChildAt(realPosition)).setImageResource(R.drawable.shape_dot_focused);
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent ev) {
+        switch (ev.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                stopSwitch();
+                break;
+            // 故意这样写，让ACTION_CANCEL和ACTION_UP执行同一反应
+            case MotionEvent.ACTION_CANCEL:
+            case MotionEvent.ACTION_UP:
+                startSwitch(switchTime);
+                break;
+        }
+        return false;
     }
 
     /**
@@ -161,6 +245,11 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
             this.datas = datas;
         }
 
+        /**
+         * 换算成真实数据
+         * @param position 位置
+         * @return 位置
+         */
         public int toRealPosition(int position) {
             int realCount = getRealCount();
             if (realCount == 0)
@@ -168,6 +257,10 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
             return position % realCount;
         }
 
+        /**
+         * 获取图片的真实数据
+         * @return 数
+         */
         public int getRealCount() {
             return datas == null ? 0 : datas.size();
         }
@@ -190,12 +283,27 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
 
         @Override
         public Object instantiateItem(ViewGroup container, int position) {
-            int realPosition = toRealPosition(position);
-            View view = getView(container, realPosition, null);
+            final int realPosition = toRealPosition(position);
+            final View view = getView(container, realPosition, null);
+            view.setOnClickListener(new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (onBannerItemClick != null) {
+                        onBannerItemClick.onItemClick(view, realPosition);
+                    }
+                }
+            });
             container.addView(view);
             return view;
         }
 
+        /**
+         * 获取视图
+         * @param container 父布局
+         * @param position 位置
+         * @param view 视图
+         * @return 视图
+         */
         private View getView(ViewGroup container, int position, View view) {
             Holder holder;
             if (view == null) {
@@ -222,5 +330,12 @@ public class BannerView extends FrameLayout implements View.OnTouchListener {
         View createView(Context context);
 
         void viewCreated(Context context, int position, T data);
+    }
+
+    /**
+     * ViewPagerItem点击监听
+     */
+    public interface OnBannerItemClick {
+        void onItemClick(View view, int position);
     }
 }

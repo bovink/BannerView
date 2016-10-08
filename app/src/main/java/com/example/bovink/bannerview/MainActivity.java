@@ -15,6 +15,9 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
     private BannerView bannerView;
     private List<String> networkImages;
+    /**
+     * 网络图片
+     */
     private String[] images = {"http://img2.imgtn.bdimg.com/it/u=3093785514,1341050958&fm=21&gp=0.jpg",
             "http://img2.3lian.com/2014/f2/37/d/40.jpg",
             "http://d.3987.com/sqmy_131219/001.jpg",
@@ -32,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         networkImages= Arrays.asList(images);
+
         bannerView = (BannerView) findViewById(R.id.bannerView);
         bannerView.setData(new ViewPagerHolder(), networkImages);
         bannerView.startSwitch(1000);
