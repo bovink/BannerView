@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
 
         bannerView = (BannerView) findViewById(R.id.bannerView);
         bannerView.setData(new ViewPagerItemViewHolder(), networkImages);
-        bannerView.startSwitch(1000);
+//        bannerView.startSwitch(1000);
     }
 
     private class ViewPagerItemViewHolder implements BannerView.ItemViewHolder<String> {

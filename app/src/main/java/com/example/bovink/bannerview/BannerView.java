@@ -46,7 +46,7 @@ public class BannerView extends FrameLayout {
     /**
      * Banner切换的时间
      */
-    private Long switchTime;
+    private Long switchTime = 0l;
     /**
      * Banner是否在切换的flag
      */
@@ -316,7 +316,9 @@ public class BannerView extends FrameLayout {
 
             switch (state) {
                 case ViewPager.SCROLL_STATE_IDLE:
-                    startSwitch(switchTime);
+                    if (!isSwitching && switchTime != 0) {
+                        startSwitch(switchTime);
+                    }
                     break;
             }
         }
